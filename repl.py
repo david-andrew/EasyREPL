@@ -1,5 +1,6 @@
 from line import readl
 
+import pdb
 
 class REPL:
     """
@@ -14,10 +15,14 @@ class REPL:
 
     def __init__(self, prompt='>>> ', history_file=None):
         self.prompt = prompt
+        self.history_file = history_file
 
-        if history_file is not None:
-            with open(history_file, 'r') as f:
-                self.history = f.readlines()
+        if self.history_file is not None:
+            try:
+                with open(self.history_file, 'r') as f:
+                    self.history = f.read().splitlines()
+            except FileNotFoundError:
+                self.history = []
         else:
             self.history = []
         self.index = len(self.history)
@@ -44,17 +49,24 @@ class REPL:
                 line = readl(up_callback=lambda line: self.up_callback(),
                              down_callback=lambda line: self.down_callback())
                 if line:
-                    self.history.append(line)
+                    #append without duplicates
+                    self.history = [h for h in self.history if h != line] + [line]
                     self.index = len(self.history)
-                yield line
+                    yield line
             except KeyboardInterrupt:
                 print()
                 print(KeyboardInterrupt.__name__)
+                self.index = len(self.history)
             except EOFError:
                 break
+
+        #save history at the end of the REPL
+        if self.history_file is not None:
+            with open(self.history_file, 'w') as f:
+                f.write('\n'.join(self.history))
         
 
 if __name__ == '__main__':
     #simple echo REPL
-    for line in REPL():
+    for line in REPL(history_file='history.txt'):
         print(line)
