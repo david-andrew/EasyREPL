@@ -1,7 +1,5 @@
 from line import readl
 
-import pdb
-
 class REPL:
     """
     simple python class for creating custom REPLs. 
