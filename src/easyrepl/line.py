@@ -7,6 +7,7 @@ import termios
 #      - single function for all arrow keys (readl interface would probably still take up/down/left/right callbacks))
 #           - would use enums to select which version of the function to do
 #      - callbacks can return the new line as well as the new cursor position 
+#TODO: clean up the code organization
 
 def get_cursor_pos() -> tuple[int, int]:
     """measure the current horizontal and vertical position of the cursor"""
