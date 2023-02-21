@@ -1,4 +1,4 @@
-from line import readl
+from .line import readl
 
 class REPL:
     """

@@ -1,2 +1,2 @@
-from line import readl
-from repl import REPL
+from .line import readl
+from .repl import REPL
