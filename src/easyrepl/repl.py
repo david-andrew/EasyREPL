@@ -1,4 +1,4 @@
-from .line import readl
+import readline
 
 class REPL:
     """
@@ -11,58 +11,50 @@ class REPL:
         <do something with line>
     """
 
-    def __init__(self, prompt='>>> ', history_file=None):
+    def __init__(self, prompt='>>> ', history_file=None, dedup_history=True):
         self.prompt = prompt
         self.history_file = history_file
+        self.dedup_history = dedup_history
 
         if self.history_file is not None:
-            try:
-                with open(self.history_file, 'r') as f:
-                    self.history = f.read().splitlines()
-            except FileNotFoundError:
-                self.history = []
-        else:
-            self.history = []
-        self.index = len(self.history)
+            # ensure that the file exists, then pass it to readline
+            with open(self.history_file, 'a'): ...
+            readline.read_history_file(self.history_file)
 
-    def up_callback(self):
-        if self.index > 0:
-            self.index -= 1
-            return self.history[self.index]
-        return None
-    
-    def down_callback(self):
-        if self.index < len(self.history)-1:
-            self.index += 1
-            return self.history[self.index]
-        elif self.index == len(self.history)-1:
-            self.index += 1
-            return ''
-        return None
+        readline.set_auto_history(False)
       
     def __iter__(self):
         while True:
             try:
-                print(self.prompt, end='', flush=True)
-                line = readl(up_callback=lambda line: self.up_callback(),
-                             down_callback=lambda line: self.down_callback())
+                line = input(self.prompt)
+
                 if line:
-                    #append without duplicates
-                    self.history = [h for h in self.history if h != line] + [line]
-                    self.index = len(self.history)
+                    if self.dedup_history:
+                        #append without duplicates
+                        i = 0
+                        while i < readline.get_current_history_length():
+                            if readline.get_history_item(i+1) == line:
+                                readline.remove_history_item(i)
+                            else:
+                                i += 1
+
+                    #append to history
+                    readline.add_history(line)
+
+                    #return line as next item in iteration
                     yield line
+
             except KeyboardInterrupt:
                 print()
                 print(KeyboardInterrupt.__name__)
-                self.index = len(self.history)
+
             except EOFError:
                 break
 
         #save history at the end of the REPL
         if self.history_file is not None:
-            with open(self.history_file, 'w') as f:
-                f.write('\n'.join(self.history))
-        
+            readline.write_history_file(self.history_file)
+
 
 if __name__ == '__main__':
     #simple echo REPL

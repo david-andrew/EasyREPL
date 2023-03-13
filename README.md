@@ -5,7 +5,7 @@ A simple python class for creating Read Evaluate Print Line (REPL) interfaces.
 
 This module requires Python 3.7 or higher. 
 
-Additionally this library uses the `termios` module so it will only work on Unix based systems.
+Additionally this library makes use of the [GNU readline Interface](https://docs.python.org/3/library/readline.html), so it will only work on Unix based systems.
 
 ## Usage
 
@@ -19,7 +19,7 @@ for line in REPL():
     print(line)
 ```
 
-which will create a simple echoing REPL interface that repeats any line you type into it (Ctrl-D to exit).
+which will create a simple echoing REPL interface that repeats any line you type into it.
 
 ```bash
 >>> hello
@@ -29,10 +29,19 @@ world
 >>>
 ```
 
-Additionally the standalone `readl` function is available. It provides the simple line editor interface for reading in a line of text from the terminal. I.e. you can use the arrow keys to move the cursor and edit the line.
-
-```python
-from easyrepl import readl
-
-line = readl()
-```
+The input allows common terminal shortcuts like:
+- **Ctrl-D**: exit REPL
+- **Ctrl-L**: clear screen
+- **Ctrl-R**: search history
+- **Left/Right Arrow**: move cursor left/right
+- **Up/Down Arrow**: previous/next history
+- **Ctrl-A**: move cursor to beginning of line
+- **Ctrl-E**: move cursor to end of line
+- **Alt-B**: move cursor backward one word
+- **Alt-F**: move cursor forward one word
+- **Ctrl-K**: delete from cursor to end of line
+- **Ctrl-U**: delete from cursor to beginning of line
+- **Ctrl-W**: delete from cursor to beginning of word
+- **Alt-D**: delete from cursor to end of word
+- **Ctrl-C**: no operation
+- etc.
