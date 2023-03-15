@@ -45,3 +45,23 @@ The input allows common terminal shortcuts like:
 - **Alt-D**: delete from cursor to end of word
 - **Ctrl-C**: no operation
 - etc.
+
+
+Additionally, multi-line input can be achieved by starting a line with triple quotes (`"""` or `'''`), and ending the final line with a matching triple quote. Triple quotes in the middle of a line will have no effect.
+
+
+```
+>>> """
+... This is a multi-line input
+... that will continue until
+... the user enters three quotes
+... at the end of a line
+... """
+This is a multi-line input
+that will continue until
+the user enters three quotes
+at the end of a line
+>>>
+```
+
+Note that a single newline will be stripped from the beginning and end of the input if present.
