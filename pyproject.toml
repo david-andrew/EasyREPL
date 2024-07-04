@@ -6,7 +6,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "easyrepl"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
   { name="David Andrew Samson", email="david.andrew.engineer@gmail.com" },
 ]
