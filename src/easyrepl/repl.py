@@ -13,7 +13,7 @@ class REPL:
         <do something with line>
     """
 
-    def __init__(self, *, prompt='>>> ', history_file=None, dedup_history=True, ctrl_c_quit=False):
+    def __init__(self, *, prompt:str='>>> ', history_file:str|Path|None=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
         self.prompt = prompt
         self.history_file = history_file
         self.external_history = '/tmp/easyrepl_external_history.txt'
@@ -23,9 +23,11 @@ class REPL:
         # ensure that the external history file exists
         Path(self.external_history).touch()
 
-        # If set, ensure that the regular history file exists, then pass it to readline
+        # If set, ensure that the regular history directory and file exists, then pass it to readline
         if self.history_file is not None:
-            Path(self.history_file).touch()
+            self.history_file = Path(self.history_file).expanduser().resolve()
+            self.history_file.parent.mkdir(parents=True, exist_ok=True)
+            self.history_file.touch()
             readline.read_history_file(self.history_file)
 
         # let easyrepl manually manage history
