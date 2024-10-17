@@ -1,4 +1,5 @@
 import readline
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 from typing import Union
 
@@ -8,32 +9,35 @@ class REPL:
     manages receiving input, cursor position, and history, while the library user 
 
     usage:
-
+    ```python
     for line in REPL():
-        <do something with line>
+        # do something with line
+        print(line)
+    ```
     """
 
     def __init__(self, *, prompt:str='>>> ', history_file:Union[str,Path,None]=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
         self.prompt = prompt
-        self.history_file = history_file
-        self.external_history = '/tmp/easyrepl_external_history.txt'
+        self.external_history_file = NamedTemporaryFile()
+        self.external_history = self.external_history_file.name
         self.dedup_history = dedup_history
         self.ctrl_c_quit = ctrl_c_quit
-
-        # ensure that the external history file exists
-        #TODO: this should be in memory
-        Path(self.external_history).touch()
 
         # let easyrepl manually manage history
         readline.set_auto_history(False)
 
-        # If set, ensure that the regular history directory and file exists, then pass it to readline
-        if self.history_file is not None:
-            history_file = Path(self.history_file).expanduser().resolve()
+        # If set, ensure that the regular history directory and file exists.
+        # Otherwise, create a temporary file
+        if history_file is None:
+            self.history_file_ref = NamedTemporaryFile()
+            self.history_file = self.history_file_ref.name
+        else:
+            history_file = Path(history_file).expanduser().resolve()
             history_file.parent.mkdir(parents=True, exist_ok=True)
             history_file.touch()
             self.history_file = str(history_file)
-            self.restore_history()
+        
+        self.restore_history()
 
 
     def stash_history(self):
@@ -57,10 +61,6 @@ class REPL:
         readline.set_auto_history(False)
         readline.clear_history()
         readline.read_history_file(self.history_file)
-
-    def __del__(self):
-        # clear the external history file (in-case the os doesn't in between runs)
-        Path(self.external_history).unlink()
 
     def __iter__(self):
         while True:
@@ -118,8 +118,7 @@ class REPL:
                 break
 
         # save history at the end of the REPL
-        if self.history_file is not None:
-            self.stash_history()
+        self.stash_history()
 
 
 def readl(*, prompt='', ctrl_c_quit=True, **kwargs):
