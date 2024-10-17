@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "easyrepl"
-version = "0.1.4"
+version = "0.1.5"
 description = "A simple python class for creating Read Evaluate Print Line (REPL) interfaces"
 authors = ["David Samson <david.andrew.engineer@gmail.com>"]
 license = "MIT"
