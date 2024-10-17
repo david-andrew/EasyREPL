@@ -1,6 +1,6 @@
 import readline
 from pathlib import Path
-
+from typing import Union
 
 class REPL:
     """
@@ -13,7 +13,7 @@ class REPL:
         <do something with line>
     """
 
-    def __init__(self, *, prompt:str='>>> ', history_file:str|Path|None=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
+    def __init__(self, *, prompt:str='>>> ', history_file:Union[str,Path,None]=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
         self.prompt = prompt
         self.history_file = history_file
         self.external_history = '/tmp/easyrepl_external_history.txt'
@@ -21,17 +21,20 @@ class REPL:
         self.ctrl_c_quit = ctrl_c_quit
 
         # ensure that the external history file exists
+        #TODO: this should be in memory
         Path(self.external_history).touch()
-
-        # If set, ensure that the regular history directory and file exists, then pass it to readline
-        if self.history_file is not None:
-            self.history_file = Path(self.history_file).expanduser().resolve()
-            self.history_file.parent.mkdir(parents=True, exist_ok=True)
-            self.history_file.touch()
-            readline.read_history_file(self.history_file)
 
         # let easyrepl manually manage history
         readline.set_auto_history(False)
+
+        # If set, ensure that the regular history directory and file exists, then pass it to readline
+        if self.history_file is not None:
+            history_file = Path(self.history_file).expanduser().resolve()
+            history_file.parent.mkdir(parents=True, exist_ok=True)
+            history_file.touch()
+            self.history_file = str(history_file)
+            self.restore_history()
+
 
     def stash_history(self):
         """
@@ -116,7 +119,7 @@ class REPL:
 
         # save history at the end of the REPL
         if self.history_file is not None:
-            readline.write_history_file(self.history_file)
+            self.stash_history()
 
 
 def readl(*, prompt='', ctrl_c_quit=True, **kwargs):
