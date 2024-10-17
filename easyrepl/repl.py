@@ -8,7 +8,16 @@ class REPL:
     simple python class for creating custom REPLs. 
     manages receiving input, cursor position, and history, while the library user 
 
-    usage:
+    Args:
+        prompt (str, optional): prompt to display before each line. Defaults to '>>> '.
+        history_file (Union[str,Path,None], optional): file to store history. Defaults to a temporary file.
+        dedup_history (bool, optional): remove duplicates from history. Defaults to True.
+        ctrl_c_quit (bool, optional): raise KeyboardInterrupt on Ctrl-C. Defaults to False.
+
+    Yields:
+        str: each line of input from the user
+
+    Usage:
     ```python
     for line in REPL():
         # do something with line
