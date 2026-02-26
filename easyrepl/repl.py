@@ -1,6 +1,7 @@
 import readline
 from tempfile import NamedTemporaryFile
 from pathlib import Path
+from os import PathLike
 from typing import Union
 
 class REPL:
@@ -25,7 +26,7 @@ class REPL:
     ```
     """
 
-    def __init__(self, *, prompt:str='>>> ', history_file:Union[str,Path,None]=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
+    def __init__(self, *, prompt:str='>>> ', history:Union[PathLike,None]=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
         self.prompt = prompt
         self.external_history_file = NamedTemporaryFile()
         self.external_history = self.external_history_file.name
@@ -37,14 +38,14 @@ class REPL:
 
         # If set, ensure that the regular history directory and file exists.
         # Otherwise, create a temporary file
-        if history_file is None:
+        if history is None:
             self.history_file_ref = NamedTemporaryFile()
             self.history_file = self.history_file_ref.name
         else:
-            history_file = Path(history_file).expanduser().resolve()
-            history_file.parent.mkdir(parents=True, exist_ok=True)
-            history_file.touch()
-            self.history_file = str(history_file)
+            history = Path(history).expanduser().resolve()
+            history.parent.mkdir(parents=True, exist_ok=True) # ensure the directory exists
+            self.history_file = str(history)
+            # a prior history file may or may not exist at this point. restore_history gracefully handles loading it, and replacing it with empty if it is missing or ill formed
         
         self.restore_history()
 
@@ -69,7 +70,10 @@ class REPL:
         readline.write_history_file(self.external_history)
         readline.set_auto_history(False)
         readline.clear_history()
-        readline.read_history_file(self.history_file)
+        try:
+            readline.read_history_file(self.history_file)
+        except Exception as e:
+            ... # any issues reading the file means we'll just clobber it next time we stash
 
     def __iter__(self):
         while True:
@@ -137,5 +141,5 @@ def readl(*, prompt='', ctrl_c_quit=True, **kwargs):
 
 if __name__ == '__main__':
     # simple echo REPL
-    for line in REPL(history_file='history.txt'):
+    for line in REPL(history='history.txt'):
         print(line)
