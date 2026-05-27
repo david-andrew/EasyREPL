@@ -1,145 +1,113 @@
-import readline
-from tempfile import NamedTemporaryFile
-from pathlib import Path
+import sys
 from os import PathLike
-from typing import Union
+from typing import Iterator, Optional, Union
+
+from .editor import LineEditor
+from .history import History
+from .terminal import Terminal
+
 
 class REPL:
-    """
-    simple python class for creating custom REPLs. 
-    manages receiving input, cursor position, and history, while the library user 
+    """Generator-based Read Evaluate Print Loop with a built-in line editor.
 
     Args:
-        prompt (str, optional): prompt to display before each line. Defaults to '>>> '.
-        history_file (Union[str,Path,None], optional): file to store history. Defaults to a temporary file.
-        dedup_history (bool, optional): remove duplicates from history. Defaults to True.
-        ctrl_c_quit (bool, optional): raise KeyboardInterrupt on Ctrl-C. Defaults to False.
+        prompt: prompt rendered before the first line of each input. Defaults to '>>> '.
+        continuation_prompt: prompt rendered on every line of a multi-line input
+            after the first. Defaults to '... '.
+        history: file path to load/save history. If None, history is in-memory only.
+        dedup_history: when True, appending an entry removes any prior identical entries.
+        ctrl_c_quit: when True, Ctrl-C re-raises KeyboardInterrupt to terminate the REPL.
 
     Yields:
-        str: each line of input from the user
+        Each non-empty submission as a string.
 
     Usage:
-    ```python
-    for line in REPL():
-        # do something with line
-        print(line)
-    ```
+        ```python
+        for line in REPL():
+            print(line)
+        ```
     """
 
-    def __init__(self, *, prompt:str='>>> ', history:Union[PathLike,None]=None, dedup_history:bool=True, ctrl_c_quit:bool=False):
+    def __init__(
+        self,
+        *,
+        prompt: str = '>>> ',
+        continuation_prompt: str = '... ',
+        history: Optional[Union[str, PathLike]] = None,
+        dedup_history: bool = True,
+        ctrl_c_quit: bool = False,
+    ):
         self.prompt = prompt
-        self.external_history_file = NamedTemporaryFile()
-        self.external_history = self.external_history_file.name
-        self.dedup_history = dedup_history
+        self.continuation_prompt = continuation_prompt
+        self.history = History(path=history, dedup=dedup_history)
         self.ctrl_c_quit = ctrl_c_quit
 
-        # let easyrepl manually manage history
-        readline.set_auto_history(False)
+    def __iter__(self) -> Iterator[str]:
+        if not sys.stdin.isatty():
+            yield from self._fallback_iter()
+            return
 
-        # If set, ensure that the regular history directory and file exists.
-        # Otherwise, create a temporary file
-        if history is None:
-            self.history_file_ref = NamedTemporaryFile()
-            self.history_file = self.history_file_ref.name
-        else:
-            history = Path(history).expanduser().resolve()
-            history.parent.mkdir(parents=True, exist_ok=True) # ensure the directory exists
-            self.history_file = str(history)
-            # a prior history file may or may not exist at this point. restore_history gracefully handles loading it, and replacing it with empty if it is missing or ill formed
-        
-        self.restore_history()
+        while True:
+            try:
+                with Terminal() as term:
+                    editor = LineEditor(
+                        term,
+                        self.history,
+                        self.prompt,
+                        self.continuation_prompt,
+                    )
+                    line = editor.edit()
+            except KeyboardInterrupt:
+                if self.ctrl_c_quit:
+                    raise
+                print('KeyboardInterrupt')
+                continue
+            except EOFError:
+                return
 
+            if line:
+                self.history.append(line)
+                yield line
 
-    def stash_history(self):
-        """
-        stash the current history and restore the external history
-        This should be called when the line is yielded to the user
-        It ensures that easyrepl's internal history doesn't interfere
-        with any other processes that might use readline, e.g. pdb
-        """
-        readline.write_history_file(self.history_file)
-        readline.clear_history()
-        readline.set_auto_history(True)
-        readline.read_history_file(self.external_history)
-
-    def restore_history(self):
-        """
-        stash the external history and restore the current history
-        This should be called after control comes back from the yielded line
-        """
-        readline.write_history_file(self.external_history)
-        readline.set_auto_history(False)
-        readline.clear_history()
-        try:
-            readline.read_history_file(self.history_file)
-        except Exception as e:
-            ... # any issues reading the file means we'll just clobber it next time we stash
-
-    def __iter__(self):
+    def _fallback_iter(self) -> Iterator[str]:
+        """Plain `input()` loop for non-TTY stdin (pipes, redirects)."""
         while True:
             try:
                 line = input(self.prompt)
-
-                if line.startswith('"""') or line.startswith("'''"):
-                    # If the first line starts with a triple quote, continue to read input
-                    # until the closing triple quote is encountered
-                    delimiter, line = line[0:3], line[3:]
-
-                    lines = []
-                    while True:
-                        lines.append(line)
-                        if line.endswith(delimiter):
-                            break
-                        line = input('... ')
-
-                    # join the lines together, removing the trailing triple quote
-                    line = '\n'.join(lines)
-                    line = line[:-3]
-
-                    # remove up to one newline from the beginning and end of the line
-                    if line[0] == '\n':
-                        line = line[1:]
-                    if line[-1] == '\n':
-                        line = line[:-1]
-
-                if line:
-                    if self.dedup_history:
-                        # append without duplicates
-                        i = 0
-                        while i < readline.get_current_history_length():
-                            if readline.get_history_item(i+1) == line:
-                                readline.remove_history_item(i)
-                            else:
-                                i += 1
-
-                    # append to history
-                    readline.add_history(line)
-
-                    # yield line as next item in iteration, allowing the user to process it
-                    # stash this history and restore any external history, in case pdb/etc. is used, they won't overlap
-                    self.stash_history()
-                    yield line
-                    self.restore_history()
-
-            except KeyboardInterrupt as e:
-                if self.ctrl_c_quit:
-                    raise e from None
-                print()
-                print(KeyboardInterrupt.__name__)
-
             except EOFError:
-                break
+                return
+            except KeyboardInterrupt:
+                if self.ctrl_c_quit:
+                    raise
+                print('KeyboardInterrupt')
+                continue
+            if line.startswith('"""') or line.startswith("'''"):
+                delim = line[:3]
+                rest = line[3:]
+                parts = [rest]
+                while True:
+                    if parts[-1].endswith(delim):
+                        break
+                    try:
+                        parts.append(input(self.continuation_prompt))
+                    except EOFError:
+                        return
+                joined = '\n'.join(parts)
+                line = joined[:-3]
+                if line.startswith('\n'):
+                    line = line[1:]
+                if line.endswith('\n'):
+                    line = line[:-1]
+            if line:
+                self.history.append(line)
+                yield line
 
-        # save history at the end of the REPL
-        self.stash_history()
 
-
-def readl(*, prompt='', ctrl_c_quit=True, **kwargs):
-    """read a single line using the REPL"""
+def readl(*, prompt: str = '', ctrl_c_quit: bool = True, **kwargs) -> str:
+    """Read a single line via the REPL editor, returning its contents."""
     return next(iter(REPL(prompt=prompt, ctrl_c_quit=ctrl_c_quit, **kwargs)))
 
 
 if __name__ == '__main__':
-    # simple echo REPL
     for line in REPL(history='history.txt'):
         print(line)
