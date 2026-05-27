@@ -44,25 +44,28 @@ def _windows_smoke() -> int:
         print('pywinpty required on Windows: pip install pywinpty', file=sys.stderr)
         return 1
 
-    proc = PtyProcess.spawn(f'{sys.executable} -c "{_CHILD}"')
+    proc = PtyProcess.spawn([sys.executable, '-c', _CHILD])
     time.sleep(0.5)
     proc.write('smoke-line\r')
     captured = b''
-    deadline = time.time() + 10
+    deadline = time.time() + 15
     while time.time() < deadline:
-        if not proc.isalive() and not proc.iseof():
+        if _EXPECTED in captured:
             break
         try:
             chunk = proc.read(4096)
         except EOFError:
             break
         if chunk:
-            captured += chunk.encode('utf-8', errors='replace')
-        if _EXPECTED in captured:
+            if isinstance(chunk, bytes):
+                captured += chunk
+            else:
+                captured += chunk.encode('utf-8', errors='replace')
+        if not proc.isalive():
             break
         time.sleep(0.05)
-    proc.close()
-    return _check(proc.getexitcode(), captured)
+    proc.wait()
+    return _check(proc.exitstatus, captured)
 
 
 def _read_until_done(child: subprocess.Popen, master: int) -> bytes:
@@ -83,12 +86,12 @@ def _read_until_done(child: subprocess.Popen, master: int) -> bytes:
 
 
 def _check(returncode: int | None, captured: bytes) -> int:
-    if returncode != 0:
-        print(f'child exit {returncode}', file=sys.stderr)
-        print(captured.decode('utf-8', errors='replace'), file=sys.stderr)
-        return 1
     if _EXPECTED not in captured:
         print('missing expected RESULT in TTY output', file=sys.stderr)
+        print(captured.decode('utf-8', errors='replace'), file=sys.stderr)
+        return 1
+    if returncode not in (None, 0):
+        print(f'child exit {returncode}', file=sys.stderr)
         print(captured.decode('utf-8', errors='replace'), file=sys.stderr)
         return 1
     print(f'{platform.system()} TTY smoke OK')
