@@ -97,7 +97,11 @@ REPL(*, prompt='>>> ', continuation_prompt='... ', history=None,
 - `ctrl_c_quit`: when True, Ctrl-C re-raises `KeyboardInterrupt` to terminate the REPL.
 
 ```python
-readl(*, prompt='', ctrl_c_quit=True, **kwargs) -> str
+readl(*, prompt='', continuation_prompt='... ', history=None,
+      dedup_history=True, ctrl_c_quit=True) -> str
 ```
 
-Read a single line using the REPL editor.
+Read a single line using the REPL editor and return it. Takes the same
+keyword arguments as `REPL` (except `ctrl_c_quit` defaults to `True` here).
+History is shared process-wide keyed by `history`, so repeated `readl` calls —
+and a `REPL` using the same `history` — participate in the same history.
