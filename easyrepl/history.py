@@ -104,3 +104,18 @@ class History:
             if pattern in self.entries[i]:
                 return i
         return None
+
+
+_cache: 'dict[Optional[Path], History]' = {}
+
+
+def get_history(path: Optional[Union[str, PathLike]] = None, dedup: bool = True) -> 'History':
+    """Return the process-wide History for `path` (or the shared in-memory one if None).
+
+    First caller for a given key sets the History's `dedup` behavior; subsequent
+    callers reuse the same instance regardless of the `dedup` they pass.
+    """
+    key = Path(path).expanduser().resolve() if path is not None else None
+    if key not in _cache:
+        _cache[key] = History(path=path, dedup=dedup)
+    return _cache[key]
