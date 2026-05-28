@@ -87,7 +87,7 @@ of the buffer and the block is closed (the line then gets submitted).
 
 ```python
 REPL(*, prompt='>>> ', continuation_prompt='... ', history=None,
-     dedup_history=True, ctrl_c_quit=False)
+     dedup_history=True, ctrl_c_quit=False) -> Generator[str]
 ```
 
 - `prompt`: prompt rendered before the first line of each input.
